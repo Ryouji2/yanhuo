@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>烟花动画</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* 背景设为动态星空 */
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    /* 星空效果 */
+    .stars {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 10%, rgba(0, 0, 0, 0) 50%);
+      animation: starAnimation 2s infinite linear;
+      z-index: -1;
+    }
+
+    /* 星星背景动画 */
+    @keyframes starAnimation {
+      0% {
+        background-position: 0 0;
+      }
+      100% {
+        background-position: 100% 100%;
+      }
+    }
+
+    /* 文字样式 */
+    .text {
+      position: absolute;
+      font-size: 60px;
+      color: white;
+      text-align: center;
+      text-shadow: 0 0 10px white;
+      animation: textAnimation 2s infinite alternate;
+    }
+
+    @keyframes textAnimation {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1.5);
+        opacity: 0.7;
+      }
+    }
+
+    /* Canvas 用于绘制烟花 */
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 文字显示 -->
+  <div class="text">新年快乐 wkg&lqy</div>
+
+  <!-- 星空背景 -->
+  <div class="stars"></div>
+
+  <!-- Canvas 画布，用于绘制烟花 -->
+  <canvas id="fireworksCanvas"></canvas>
+
+  <!-- 音效 -->
+  <audio id="fireworksSound" src="fireworks.mp3" preload="auto"></audio>
+
+  <script>
+    // 获取 canvas 和上下文
+    const canvas = document.getElementById('fireworksCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // 音效对象
+    const sound = document.getElementById('fireworksSound');
+
+    // 随机数生成函数
+    function getRandom(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    // 粒子类
+    class Particle {
+      constructor(x, y, color, speedX, speedY, size) {
+        this.x = x;
+        this.y = y;
+        this.size = size;
+        this.speedX = speedX;
+        this.speedY = speedY;
+        this.life = 0;
+        this.maxLife = getRandom(30, 80);
+        this.color = color;
+      }
+
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        this.life++;
+        this.size *= 0.98;  // 粒子逐渐变小
+      }
+
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 烟花类
+    class Firework {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.particles = [];
+        this.exploded = false;
+        this.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+        this.size = 6;
+        this.speedY = getRandom(-3, -4);  // 上升的速度
+        this.maxHeight = getRandom(150, 250);  // 最大上升高度
+      }
+
+      // 烟花发射
+      launch() {
+        const interval = setInterval(() => {
+          this.y += this.speedY;  // 向上移动
+          if (this.y <= canvas.height - this.maxHeight) {
+            this.explode();
+            clearInterval(interval); // 停止上升，开始爆炸
+          }
+        }, 15);  // 改小间隔，增快速度
+      }
+
+      // 烟花爆炸
+      explode() {
+        this.exploded = true;
+        const particleCount = getRandom(50, 120);  // 增加粒子数量
+        for (let i = 0; i < particleCount; i++) {
+          const angle = Math.random() * Math.PI * 2;  // 随机角度
+          const speed = getRandom(3, 6);  // 增加爆炸速度
+          const particle = new Particle(
+            this.x, this.y, 
+            this.color, 
+            Math.cos(angle) * speed, 
+            Math.sin(angle) * speed, 
+            getRandom(6, 14)  // 增加粒子大小范围
+          );
+          this.particles.push(particle);
+        }
+        playSound();  // 播放音效
+      }
+
+      update() {
+        if (this.exploded) {
+          this.particles.forEach(p => {
+            p.update();
+          });
+        }
+      }
+
+      draw() {
+        if (this.exploded) {
+          this.particles.forEach(p => {
+            p.draw();
+          });
+        }
+      }
+    }
+
+    // 创建烟花
+    const fireworks = [];
+    setInterval(() => {
+      const x = getRandom(0, canvas.width);
+      const y = canvas.height;
+      const firework = new Firework(x, y);
+      firework.launch();
+      fireworks.push(firework);
+    }, 1000); // 每隔1秒发射一次烟花，增加频率
+
+    // 播放音效
+    function playSound() {
+      sound.currentTime = 0;
+      sound.play();
+    }
+
+    // 更新和绘制烟花
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // 清除画布
+      fireworks.forEach(firework => {
+        firework.update();
+        firework.draw();
+      });
+      requestAnimationFrame(animate); // 循环调用
+    }
+
+    animate(); // 启动动画
+
+    // 适配屏幕尺寸
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>
